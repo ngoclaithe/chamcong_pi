@@ -37,22 +37,21 @@ def _get_linux_video_devices():
     if not os.path.exists(v4l_path):
         return devices
 
+    # Ten cua cac node ISP/codec cua Pi, khong phai camera thuc
+    pi_internal = ('bcm2835', 'rpivid', 'unicam', 'isp', 'codec')
+
     for dev_name in sorted(os.listdir(v4l_path)):
         dev_path = f'/dev/{dev_name}'
         if not os.path.exists(dev_path):
             continue
 
-        # Chi lay device co khoi video capture (index chan: video0, video2, ...)
-        # Doc V4L2 device_caps de xac dinh
-        caps_path = os.path.join(v4l_path, dev_name, 'device', 'video4linux', dev_name, 'dev')
         name_path = os.path.join(v4l_path, dev_name, 'name')
 
-        # Kiem tra co phai video capture khong
+        # Kiem tra index - chi lay index=0 (video capture), bo index>0 (metadata)
         index_path = os.path.join(v4l_path, dev_name, 'index')
         try:
             with open(index_path, 'r') as f:
                 idx = int(f.read().strip())
-            # index=0 la video capture, index>0 la metadata
             if idx != 0:
                 continue
         except (FileNotFoundError, ValueError):
@@ -65,6 +64,11 @@ def _get_linux_video_devices():
                     name = f.read().strip()
             except Exception:
                 pass
+
+        # Bo qua cac node ISP/codec noi bo cua Pi
+        name_lower = name.lower()
+        if any(kw in name_lower for kw in pi_internal):
+            continue
 
         # Lay so index tu ten device (video0 -> 0, video2 -> 2)
         try:
