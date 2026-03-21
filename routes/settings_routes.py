@@ -43,23 +43,5 @@ def save_settings():
 
 @settings_bp.route('/detect_cameras', methods=['GET'])
 def detect_cameras():
-    # Tam dung camera truoc khi scan de tranh conflict device
-    was_running = camera_service.is_running
-    if was_running:
-        camera_service.stop()
-
     cameras = settings_service.detect_cameras()
-
-    # Neu khong tim thay nhung da co cau hinh, van hien thi camera da luu
-    if not cameras:
-        saved = settings_service.get_all()
-        saved_idx = saved.get('camera_index')
-        if saved_idx is not None:
-            cameras = [{
-                'index': saved_idx,
-                'name': f'Camera {saved_idx} (da luu)',
-                'width': saved.get('camera_width', 640),
-                'height': saved.get('camera_height', 480),
-            }]
-
     return jsonify({'success': True, 'cameras': cameras})

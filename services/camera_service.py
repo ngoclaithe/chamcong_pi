@@ -25,63 +25,33 @@ class CameraService:
         self.running = False
         self._thread = None
         self._frame_lock = threading.Lock()
-        self.width = 640
-        self.height = 480
-
-    def _try_open(self, source, width, height):
-        """Thu mo camera, source co the la index (int) hoac path (str)."""
-        cap = cv2.VideoCapture(source)
-        if not cap.isOpened():
-            cap.release()
-            return None
-
-        # USB camera tren Pi can MJPG format de co toc do tot
-        if platform.system() != 'Windows':
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        cap.set(cv2.CAP_PROP_FPS, 15)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-        # Doc thu frame de dam bao camera hoat dong
-        for attempt in range(10):
-            ret, frame = cap.read()
-            if ret and frame is not None:
-                print(f"[Camera] Opened {source}, got frame on attempt {attempt + 1}")
-                return cap
-            time.sleep(0.2)
-
-        print(f"[Camera] {source} opened but no frames after 10 attempts")
-        cap.release()
-        return None
 
     def start(self, camera_index=0, width=640, height=480):
         if self.running:
             return
-        self.width = width
-        self.height = height
 
-        system = platform.system()
+        print(f"[Camera] Opening index {camera_index}...")
 
-        if system != 'Windows':
-            # Linux/Pi: mo bang device path
-            dev_path = f'/dev/video{camera_index}'
-            print(f"[Camera] Trying {dev_path}...")
-            self.camera = self._try_open(dev_path, width, height)
+        # Dung cach don gian nhat: cv2.VideoCapture(index)
+        self.camera = cv2.VideoCapture(camera_index)
 
-            # Fallback: mo bang index
-            if self.camera is None:
-                print(f"[Camera] Path failed, trying index {camera_index}...")
-                self.camera = self._try_open(camera_index, width, height)
-        else:
-            # Windows: DirectShow
-            print(f"[Camera] Trying DirectShow index {camera_index}...")
-            self.camera = self._try_open(camera_index, width, height)
-
-        if self.camera is None:
+        if not self.camera.isOpened():
             raise RuntimeError(f"Cannot open camera {camera_index}")
+
+        # Set MJPG truoc resolution (USB camera tren Pi can MJPG)
+        if platform.system() != 'Windows':
+            self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.camera.set(cv2.CAP_PROP_FPS, 15)
+        self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Doc thu 1 frame
+        ret, frame = self.camera.read()
+        if not ret:
+            self.camera.release()
+            raise RuntimeError(f"Camera {camera_index} opened but cannot read frames")
 
         actual_w = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_h = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -99,25 +69,18 @@ class CameraService:
             self.camera.release()
             self.camera = None
         self.frame = None
-        # Cho OS giai phong device
         time.sleep(0.5)
 
     def _capture_loop(self):
-        fail_count = 0
         while self.running:
             try:
                 if self.camera and self.camera.isOpened():
-                    success, frame = self.camera.read()
-                    if success and frame is not None:
+                    ret, frame = self.camera.read()
+                    if ret and frame is not None:
                         frame = cv2.flip(frame, 1)
                         with self._frame_lock:
                             self.frame = frame
-                        fail_count = 0
                     else:
-                        fail_count += 1
-                        if fail_count > 50:
-                            print("[Camera] Too many read failures, stopping")
-                            self.running = False
                         time.sleep(0.01)
                 else:
                     time.sleep(0.1)
@@ -133,9 +96,9 @@ class CameraService:
     def get_jpeg(self, quality=80):
         frame = self.get_frame()
         if frame is not None:
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+            ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
             if ret:
-                return buffer.tobytes()
+                return buf.tobytes()
         return None
 
     def generate_mjpeg(self):
