@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Chấm Công AI{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="cards-grid">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon purple"><i data-lucide="users"></i></div>
+        </div>
+        <div class="card-value">{{ total_users }}</div>
+        <div class="card-label">Tổng nhân viên</div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon green"><i data-lucide="user-check"></i></div>
+        </div>
+        <div class="card-value">{{ attendance_today }}</div>
+        <div class="card-label">Chấm công hôm nay</div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon blue"><i data-lucide="brain"></i></div>
+        </div>
+        <div class="card-value">
+            {% if model_ready %}
+            <span class="badge badge-success"><i data-lucide="check" style="width:14px;height:14px;"></i> Sẵn sàng</span>
+            {% else %}
+            <span class="badge badge-warning"><i data-lucide="alert-triangle" style="width:14px;height:14px;"></i> Chưa có NV</span>
+            {% endif %}
+        </div>
+        <div class="card-label">Nhận diện</div>
+    </div>
+</div>
+
+<!-- Two columns: Camera + Recent Attendance -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- Live Camera -->
+    <div class="camera-container">
+        <div class="table-header">
+            <div class="table-title"><i data-lucide="video" style="width:16px;height:16px;"></i> Camera Live</div>
+            <span class="badge badge-success"><i data-lucide="radio" style="width:12px;height:12px;"></i> LIVE</span>
+        </div>
+        <img src="{{ url_for('main.video_feed') }}" class="camera-feed" alt="Camera Feed"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="empty-state" style="display:none; padding: 40px;">
+            <div class="empty-state-icon"><i data-lucide="camera-off"></i></div>
+            <div class="empty-state-text">Camera chưa kết nối</div>
+        </div>
+    </div>
+
+    <!-- Recent Attendance -->
+    <div class="table-container">
+        <div class="table-header">
+            <div class="table-title"><i data-lucide="clipboard-list" style="width:16px;height:16px;"></i> Chấm công gần đây</div>
+            <a href="{{ url_for('attendance.attendance_page') }}" class="btn btn-outline btn-sm">
+                <i data-lucide="arrow-right" style="width:14px;height:14px;"></i> Xem tất cả
+            </a>
+        </div>
+        {% if recent_attendance %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Tên</th>
+                    <th>Thời gian</th>
+                    <th>Độ tin cậy</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in recent_attendance %}
+                <tr>
+                    <td>{{ record.user.name if record.user else 'N/A' }}</td>
+                    <td>{{ record.timestamp.strftime('%H:%M:%S') if record.timestamp else '' }}</td>
+                    <td>
+                        {% if record.confidence %}
+                        <span class="badge {% if record.confidence >= 0.9 %}badge-success{% elif record.confidence >= 0.7 %}badge-info{% else %}badge-warning{% endif %}">
+                            {{ "%.0f"|format(record.confidence * 100) }}%
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+            <div class="empty-state-text">Chưa có dữ liệu hôm nay</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>lucide.createIcons();</script>
+{% endblock %}

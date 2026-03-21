@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Chấm công — Chấm Công AI{% endblock %}
+{% block page_title %}Bảng chấm công{% endblock %}
+
+{% block content %}
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom: 20px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Ngày</label>
+            <input type="date" name="date" class="form-input" value="{{ today }}" style="width: 180px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Từ ngày</label>
+            <input type="date" name="from" class="form-input" style="width: 180px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Đến ngày</label>
+            <input type="date" name="to" class="form-input" style="width: 180px;">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i data-lucide="search"></i> Lọc
+        </button>
+        <a href="{{ url_for('attendance.export', **request.args) }}" class="btn btn-outline">
+            <i data-lucide="download"></i> Export CSV
+        </a>
+        {% if total > 0 %}
+        <button type="button" class="btn btn-danger" onclick="deleteAll()" style="margin-left: auto;">
+            <i data-lucide="trash-2"></i> Xóa toàn bộ ({{ total }})
+        </button>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Attendance Table -->
+<div class="table-container">
+    <div class="table-header">
+        <div class="table-title">{{ title }}</div>
+        <span class="badge badge-info">{{ total }} bản ghi · Trang {{ page }}/{{ total_pages }}</span>
+    </div>
+
+    {% if records %}
+    <table>
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Ảnh</th>
+                <th>Tên nhân viên</th>
+                <th>Mã NV</th>
+                <th>Thời gian</th>
+                <th>Độ tin cậy</th>
+                <th style="text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr id="row-{{ record.id }}">
+                <td>{{ start_index + loop.index }}</td>
+                <td>
+                    {% if record.photo_path %}
+                    <img src="/data/{{ record.photo_path }}" alt="Ảnh chấm công"
+                         style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid var(--border);"
+                         onclick="showPhotoModal(this.src)">
+                    {% else %}
+                    <div style="width: 48px; height: 48px; border-radius: 8px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">
+                        N/A
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="font-weight: 600;">{{ record.user.name if record.user else 'N/A' }}</td>
+                <td><code style="color: var(--accent);">{{ record.user.employee_code if record.user else '' }}</code></td>
+                <td>{{ record.timestamp.strftime('%d/%m/%Y %H:%M:%S') if record.timestamp else '' }}</td>
+                <td>
+                    {% if record.confidence %}
+                    <span class="badge {% if record.confidence >= 0.9 %}badge-success{% elif record.confidence >= 0.7 %}badge-info{% else %}badge-warning{% endif %}">
+                        {{ "%.1f"|format(record.confidence * 100) }}%
+                    </span>
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    <button class="btn btn-danger btn-sm" onclick="deleteRecord({{ record.id }})"
+                            title="Xóa bản ghi" style="padding: 4px 10px;">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 16px;">
+        {% if page > 1 %}
+        <a href="?{{ request.args | urlencode_pagination(page - 1) }}"
+           class="btn btn-outline btn-sm" style="padding: 6px 12px;">
+            <i data-lucide="chevron-left" style="width:14px;height:14px;"></i> Trước
+        </a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="badge badge-success" style="padding: 6px 12px; font-size: 13px;">{{ p }}</span>
+            {% elif (p - page)|abs <= 2 or p == 1 or p == total_pages %}
+            <a href="?{{ request.args | urlencode_pagination(p) }}"
+               class="btn btn-outline btn-sm" style="padding: 6px 12px; min-width: 36px; text-align: center;">{{ p }}</a>
+            {% elif (p - page)|abs == 3 %}
+            <span style="color: var(--text-muted);">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="?{{ request.args | urlencode_pagination(page + 1) }}"
+           class="btn btn-outline btn-sm" style="padding: 6px 12px;">
+            Sau <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+        <div class="empty-state-text">Không có dữ liệu chấm công</div>
+        <div class="empty-state-sub">Thử chọn ngày khác hoặc bắt đầu nhận diện</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Photo Modal -->
+<div id="photoModal" onclick="this.style.display='none'" style="
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 1000;
+    align-items: center; justify-content: center; cursor: pointer;">
+    <img id="photoModalImg" src="" alt="Ảnh chấm công" style="
+        max-width: 90%; max-height: 90%; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+lucide.createIcons();
+
+function deleteRecord(recordId) {
+    if (!confirm('Bạn chắc chắn muốn xóa bản ghi chấm công này?')) return;
+
+    fetch(`/attendance/${recordId}/delete`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const row = document.getElementById(`row-${recordId}`);
+            if (row) {
+                row.style.transition = 'opacity 0.3s ease';
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+        } else {
+            alert(data.message || 'Xóa thất bại');
+        }
+    })
+    .catch(err => alert('Lỗi: ' + err.message));
+}
+
+function deleteAll() {
+    if (!confirm('⚠️ Bạn chắc chắn muốn XÓA TOÀN BỘ lịch sử chấm công?\n\nHành động này không thể hoàn tác!')) return;
+
+    fetch('/attendance/delete_all', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Xóa thất bại');
+        }
+    })
+    .catch(err => alert('Lỗi: ' + err.message));
+}
+
+function showPhotoModal(src) {
+    const modal = document.getElementById('photoModal');
+    document.getElementById('photoModalImg').src = src;
+    modal.style.display = 'flex';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng ký nhân viên — Chấm Công AI{% endblock %}
+{% block page_title %}Đăng ký nhân viên mới{% endblock %}
+
+{% block content %}
+<form id="registerForm" method="POST" action="{{ url_for('users.register') }}">
+    <input type="hidden" id="session_id" name="session_id" value="{{ session_id }}">
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <!-- Left: Form Fields + Camera -->
+        <div>
+            <div class="card" style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="file-text"></i> Thông tin nhân viên
+                </h3>
+                <div class="form-group">
+                    <label class="form-label" for="name">Họ và tên</label>
+                    <input type="text" id="name" name="name" class="form-input" required placeholder="Nguyễn Văn A">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="employee_code">Mã nhân viên (tự động)</label>
+                    <input type="text" id="employee_code" name="employee_code" class="form-input"
+                           value="{{ employee_code }}" readonly
+                           style="background: var(--card-bg); color: var(--accent); font-weight: 700; cursor: not-allowed;">
+                </div>
+            </div>
+
+            <!-- Camera Preview -->
+            <div class="card">
+                <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="camera"></i> Chụp khuôn mặt
+                </h3>
+                <div class="camera-container" style="margin-bottom: 12px;">
+                    <video id="cameraPreview" class="camera-feed" autoplay playsinline style="max-height: 360px; transform: scaleX(-1);"></video>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" id="btnStartCamera" class="btn btn-outline" onclick="startCamera()">
+                        <i data-lucide="video"></i> Bật Camera
+                    </button>
+                    <button type="button" id="btnCapture" class="btn btn-primary" onclick="captureImage()" disabled>
+                        <i data-lucide="aperture"></i> Chụp
+                    </button>
+                    <button type="button" id="btnAutoCapture" class="btn btn-success" onclick="startAutoCapture()" disabled>
+                        <i data-lucide="zap"></i> Auto Chụp (3 ảnh)
+                    </button>
+                    <span id="captureCount" style="color: var(--text-muted); font-size: 14px;">0/3 ảnh</span>
+                </div>
+                <!-- Upload status -->
+                <div id="uploadStatus" style="margin-top: 8px; font-size: 13px; color: var(--text-muted); display: none;">
+                    <i data-lucide="loader" class="spin-icon" style="width:14px;height:14px;display:inline;"></i>
+                    <span id="uploadStatusText">Đang upload...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Captured Images -->
+        <div>
+            <div class="card">
+                <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="images"></i> Ảnh đã chụp
+                </h3>
+                <div class="capture-grid" id="captureGrid">
+                    <!-- Thumbnails inserted by JS -->
+                </div>
+                <div style="margin-top: 20px;">
+                    <button type="submit" id="btnSubmit" class="btn btn-primary btn-lg" style="width: 100%;" disabled>
+                        <i data-lucide="check-circle"></i> Đăng ký nhân viên
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+<script>lucide.createIcons();</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Nhận diện — Chấm Công AI{% endblock %}
+{% block page_title %}Nhận diện khuôn mặt{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+    <!-- Camera Feed with Scan Zone + BBox overlay -->
+    <div>
+        <div class="camera-container">
+            <div class="table-header">
+                <div class="table-title"><i data-lucide="video" style="width:16px;height:16px;"></i> Camera Live</div>
+                <span id="statusBadge" class="badge badge-success">Đang quét...</span>
+            </div>
+            <img src="{{ url_for('recognition.recognition_video_feed') }}" class="camera-feed" alt="Camera Feed"
+                 onerror="this.style.display='none'">
+        </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div>
+        <!-- Kết quả nhận diện -->
+        <div class="card">
+            <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="scan-face"></i> Kết quả nhận diện
+            </h3>
+            <div id="recognitionResults">
+                <div class="empty-state" style="padding: 24px;">
+                    <div class="empty-state-icon"><i data-lucide="scan-face"></i></div>
+                    <div class="empty-state-text" style="font-size: 14px;">Đang quét...</div>
+                    <div class="empty-state-sub" style="font-size: 12px;">Đặt khuôn mặt vào khung xanh trên camera</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cooldown Countdown -->
+        <div class="card" id="cooldownCard" style="display: none; margin-top: 12px; text-align: center; padding: 12px;">
+            <div style="font-size: 13px; color: var(--text-muted);">
+                <i data-lucide="timer" style="width:14px; height:14px; display:inline;"></i>
+                Quét lại sau <span id="cooldownTimer" style="font-weight:700; color:var(--accent);">5</span>s
+            </div>
+        </div>
+
+        <!-- Đã chấm công hôm nay -->
+        <div class="card" style="margin-top: 12px;">
+            <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="clipboard-check"></i> Đã chấm công hôm nay
+            </h3>
+            <div id="todayLog" style="max-height: 350px; overflow-y: auto;">
+                <p style="color: var(--text-muted); font-size: 13px;">Đang tải...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recognition.js') }}"></script>
+<script>lucide.createIcons();</script>
+{% endblock %}

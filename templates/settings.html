@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Cấu hình — Chấm Công AI{% endblock %}
+{% block page_title %}Cấu hình hệ thống{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('settings.save_settings') }}">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Camera -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="camera" style="width:18px;height:18px;color:var(--accent)"></i> Camera
+            </h3>
+            <div class="form-group">
+                <label class="form-label">Nguồn camera</label>
+                <div style="display: flex; gap: 8px;">
+                    <select id="camera_index" name="camera_index" class="form-input" style="flex: 1;">
+                        <option value="{{ settings.camera_index }}">Đang quét camera...</option>
+                    </select>
+                    <button type="button" class="btn btn-outline" onclick="refreshCameras()" title="Quét lại" id="refreshBtn">
+                        <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Chiều rộng (px)</label>
+                    <input type="number" name="camera_width" class="form-input"
+                           value="{{ settings.camera_width }}" min="320" max="1920" step="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chiều cao (px)</label>
+                    <input type="number" name="camera_height" class="form-input"
+                           value="{{ settings.camera_height }}" min="240" max="1080" step="10">
+                </div>
+            </div>
+            <div id="cameraPreview" style="margin-top: 12px; display: none;">
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">Preview:</div>
+                <img id="previewImg" style="width: 100%; border-radius: 8px; border: 1px solid var(--border);">
+            </div>
+            <button type="button" class="btn btn-outline" onclick="testCamera()" style="margin-top: 12px; width: 100%;">
+                <i data-lucide="play" style="width:14px;height:14px;"></i> Test camera
+            </button>
+        </div>
+
+        <!-- Nhan dien -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="scan-face" style="width:18px;height:18px;color:var(--accent)"></i> Nhận diện
+            </h3>
+            <div class="form-group">
+                <label class="form-label">Ngưỡng similarity (0.0 - 1.0)</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="range" id="thresholdRange" name="similarity_threshold"
+                           value="{{ settings.similarity_threshold }}" min="0.3" max="0.95" step="0.05"
+                           style="flex: 1; accent-color: var(--accent);"
+                           oninput="document.getElementById('thresholdVal').textContent = this.value">
+                    <span id="thresholdVal" style="font-weight: 700; color: var(--accent); min-width: 40px; text-align: right;">
+                        {{ settings.similarity_threshold }}
+                    </span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                    Thấp = dễ match (dễ nhầm) · Cao = khó match (chính xác hơn)
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Thời gian chống trùng (phút)</label>
+                <input type="number" name="duplicate_window_minutes" class="form-input"
+                       value="{{ settings.duplicate_window_minutes }}" min="1" max="60">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                    Cùng 1 người chấm công liên tục trong khoảng này chỉ ghi 1 lần
+                </div>
+            </div>
+        </div>
+
+        <!-- Dang ky -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="user-plus" style="width:18px;height:18px;color:var(--accent)"></i> Đăng ký khuôn mặt
+            </h3>
+            <div class="form-group">
+                <label class="form-label">Số ảnh chụp tối đa</label>
+                <input type="number" name="capture_count" class="form-input"
+                       value="{{ settings.capture_count }}" min="1" max="20">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Số ảnh tối thiểu để đăng ký</label>
+                <input type="number" name="min_capture_count" class="form-input"
+                       value="{{ settings.min_capture_count }}" min="1" max="10">
+            </div>
+        </div>
+
+        <!-- Thong tin he thong -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i data-lucide="info" style="width:18px;height:18px;color:var(--accent)"></i> Thông tin hệ thống
+            </h3>
+            <div style="font-size: 13px; line-height: 2;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Nền tảng</span>
+                    <span style="font-weight: 600;">{{ platform }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Python</span>
+                    <span style="font-weight: 600;">{{ python_version }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Camera detected</span>
+                    <span id="cameraCount" class="badge badge-warning">...</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Settings storage</span>
+                    <span style="font-weight: 600; font-size: 11px; color: var(--text-secondary);">SQLite (settings table)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" class="btn btn-outline" onclick="resetDefaults()">
+            <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> Khôi phục mặc định
+        </button>
+        <button type="submit" class="btn btn-primary" style="padding: 10px 28px;">
+            <i data-lucide="save" style="width:14px;height:14px;"></i> Lưu cấu hình
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+lucide.createIcons();
+
+const savedCamera = {{ settings.camera_index }};
+
+function refreshCameras() {
+    const select = document.getElementById('camera_index');
+    const btn = document.getElementById('refreshBtn');
+    select.innerHTML = '<option>Đang quét...</option>';
+    select.disabled = true;
+    btn.disabled = true;
+
+    fetch('/settings/detect_cameras')
+      .then(r => r.json())
+      .then(data => {
+          select.innerHTML = '';
+          select.disabled = false;
+          btn.disabled = false;
+          const count = data.cameras ? data.cameras.length : 0;
+          const badge = document.getElementById('cameraCount');
+          badge.textContent = count;
+          badge.className = count > 0 ? 'badge badge-success' : 'badge badge-warning';
+
+          if (count > 0) {
+              data.cameras.forEach(cam => {
+                  const opt = document.createElement('option');
+                  opt.value = cam.index;
+                  opt.textContent = `${cam.name} (${cam.width}x${cam.height})`;
+                  if (cam.index === savedCamera) opt.selected = true;
+                  select.appendChild(opt);
+              });
+          } else {
+              select.innerHTML = '<option value="0">Khong tim thay camera</option>';
+          }
+      })
+      .catch(() => {
+          select.innerHTML = '<option value="0">Loi quet camera</option>';
+          select.disabled = false;
+          btn.disabled = false;
+      });
+}
+
+// Auto-scan khi mo trang (non-blocking)
+refreshCameras();
+
+function testCamera() {
+    const preview = document.getElementById('cameraPreview');
+    const img = document.getElementById('previewImg');
+    img.src = '/video_feed?t=' + Date.now();
+    preview.style.display = 'block';
+    setTimeout(() => { preview.style.display = 'none'; }, 10000);
+}
+
+function resetDefaults() {
+    if (!confirm('Khoi phuc cau hinh ve mac dinh?')) return;
+    fetch('/settings/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            camera_index: 0, camera_width: 640, camera_height: 480,
+            similarity_threshold: 0.6, duplicate_window_minutes: 5,
+            capture_count: 3, min_capture_count: 1
+        })
+    }).then(() => window.location.reload());
+}
+</script>
+{% endblock %}

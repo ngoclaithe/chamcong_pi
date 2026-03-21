@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Chi tiết nhân viên — Chấm Công AI{% endblock %}
+{% block page_title %}Chi tiết nhân viên{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px;">
+    <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="user"></i> {{ user.name }}
+    </h3>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div>
+            <span class="form-label">Mã nhân viên</span>
+            <p style="font-size: 18px; font-weight: 600; color: var(--accent);">{{ user.employee_code }}</p>
+        </div>
+        <div>
+            <span class="form-label">Số ảnh khuôn mặt</span>
+            <p style="font-size: 18px; font-weight: 600;">{{ user.embeddings|length }}</p>
+        </div>
+        <div>
+            <span class="form-label">Ngày đăng ký</span>
+            <p>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 24px; display: flex; gap: 12px;">
+        <a href="{{ url_for('users.user_list') }}" class="btn btn-outline">
+            <i data-lucide="arrow-left"></i> Quay lại
+        </a>
+        <form method="POST" action="{{ url_for('users.delete_user', user_id=user.id) }}"
+              onsubmit="return confirm('Xóa nhân viên {{ user.name }}?')">
+            <button type="submit" class="btn btn-danger">
+                <i data-lucide="trash-2"></i> Xóa
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>lucide.createIcons();</script>
+{% endblock %}

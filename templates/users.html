@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Nhân viên — Chấm Công AI{% endblock %}
+{% block page_title %}Quản lý nhân viên{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+        <span class="badge badge-info" style="font-size: 14px;">{{ users|length }} nhân viên</span>
+    </div>
+    <a href="{{ url_for('users.register') }}" class="btn btn-primary">
+        <i data-lucide="user-plus"></i> Thêm nhân viên
+    </a>
+</div>
+
+<div class="table-container">
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Tên</th>
+                <th>Mã NV</th>
+                <th>Số ảnh</th>
+                <th>Ngày tạo</th>
+                <th style="text-align: center;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr id="user-row-{{ user.id }}">
+                <td>{{ loop.index }}</td>
+                <td>
+                    <span id="name-display-{{ user.id }}" style="font-weight: 600;">{{ user.name }}</span>
+                </td>
+                <td><code style="color: var(--accent);">{{ user.employee_code }}</code></td>
+                <td>
+                    <span class="badge {% if user.embeddings|length >= 3 %}badge-success{% else %}badge-warning{% endif %}">
+                        {{ user.embeddings|length }} ảnh
+                    </span>
+                </td>
+                <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '' }}</td>
+                <td style="text-align: center;">
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <button class="btn btn-outline btn-sm" onclick="openEditModal({{ user.id }}, '{{ user.name }}')"
+                                title="Sửa thông tin" style="padding: 4px 10px;">
+                            <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('users.delete_user', user_id=user.id) }}"
+                              onsubmit="return confirm('Xóa nhân viên {{ user.name }}? Tất cả dữ liệu chấm công liên quan cũng sẽ bị xóa.')" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-sm" style="padding: 4px 10px;">
+                                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="user-x"></i></div>
+        <div class="empty-state-text">Chưa có nhân viên nào</div>
+        <div class="empty-state-sub">Bấm "Thêm nhân viên" để bắt đầu</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" onclick="if(event.target===this) closeEditModal()" style="
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.65); z-index: 1000;
+    align-items: center; justify-content: center;">
+    <div style="
+        background: var(--sidebar-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+        width: 420px;
+        max-width: 90vw;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+        <h3 style="margin: 0 0 20px 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
+            <i data-lucide="user-cog" style="width:20px;height:20px;color:var(--accent)"></i>
+            Sửa thông tin nhân viên
+        </h3>
+        <input type="hidden" id="editUserId">
+        <div class="form-group">
+            <label class="form-label" for="editName">Họ tên</label>
+            <input type="text" id="editName" class="form-input" placeholder="Nhập tên nhân viên">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-outline" onclick="closeEditModal()">Hủy</button>
+            <button class="btn btn-primary" onclick="saveEdit()">
+                <i data-lucide="check" style="width:14px;height:14px;"></i> Lưu
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+lucide.createIcons();
+
+function openEditModal(userId, currentName) {
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editName').value = currentName;
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('editName').focus(), 100);
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function saveEdit() {
+    const userId = document.getElementById('editUserId').value;
+    const newName = document.getElementById('editName').value.trim();
+
+    if (!newName) {
+        alert('Tên không được để trống!');
+        return;
+    }
+
+    fetch(`/users/${userId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Update inline
+            const nameEl = document.getElementById(`name-display-${userId}`);
+            if (nameEl) nameEl.textContent = newName;
+            closeEditModal();
+        } else {
+            alert(data.message || 'Cập nhật thất bại');
+        }
+    })
+    .catch(err => alert('Lỗi: ' + err.message));
+}
+
+// Close modal on Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeEditModal();
+});
+</script>
+{% endblock %}

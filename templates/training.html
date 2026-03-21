@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Training — Chấm Công AI{% endblock %}
+{% block page_title %}Training Model{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px;">
+    <div class="card" style="margin-bottom: 20px;">
+        <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="brain"></i> Huấn luyện Model nhận diện
+        </h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+            Train classifier dựa trên embeddings đã lưu. Cần ít nhất 2 nhân viên đã đăng ký.
+        </p>
+
+        <button id="btnTrain" class="btn btn-primary btn-lg" onclick="startTraining()">
+            <i data-lucide="rocket"></i> Bắt đầu Training
+        </button>
+    </div>
+
+    <!-- Training Progress -->
+    <div class="card" id="trainingProgress" style="display: {% if status.running %}block{% else %}none{% endif %};">
+        <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="loader" class="spin-icon"></i> Tiến trình Training
+        </h3>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: {{ status.progress }}%;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+            <span id="progressText" style="font-size: 14px; color: var(--text-secondary);">
+                {{ status.message }}
+            </span>
+            <span id="progressPercent" style="font-size: 14px; font-weight: 600; color: var(--accent);">
+                {{ status.progress }}%
+            </span>
+        </div>
+
+        <div id="trainingDetails" style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
+            {% if status.epoch > 0 %}
+            <p>Epoch: {{ status.epoch }}/{{ status.total_epochs }} — Loss: {{ status.loss }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Training Result -->
+    <div class="card" id="trainingResult" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div id="resultIcon" style="width:40px; height:40px;"></div>
+            <div>
+                <h3 id="resultTitle"></h3>
+                <p id="resultMessage" style="color: var(--text-secondary); font-size: 14px;"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/training.js') }}"></script>
+<script>lucide.createIcons();</script>
+{% endblock %}
