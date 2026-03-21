@@ -29,24 +29,59 @@ class CameraService:
         self.height = 480
 
     def _get_backend(self):
-        system = platform.system()
-        if system == 'Windows':
+        if platform.system() == 'Windows':
             return cv2.CAP_DSHOW
-        else:
-            return cv2.CAP_V4L2
+        return cv2.CAP_V4L2
+
+    def _try_open(self, camera_index, width, height, backend):
+        """Thu mo camera voi backend cu the, return True neu doc duoc frame."""
+        cap = cv2.VideoCapture(camera_index, backend)
+        if not cap.isOpened():
+            cap.release()
+            return None
+
+        # USB camera tren Pi can MJPG format
+        if platform.system() != 'Windows':
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        cap.set(cv2.CAP_PROP_FPS, 15)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Doc thu 1 frame de dam bao camera hoat dong
+        for _ in range(5):
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                return cap
+            time.sleep(0.1)
+
+        cap.release()
+        return None
 
     def start(self, camera_index=0, width=640, height=480):
         if self.running:
             return
         self.width = width
         self.height = height
+
+        # Thu backend chinh truoc
         backend = self._get_backend()
-        self.camera = cv2.VideoCapture(camera_index, backend)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self.camera.set(cv2.CAP_PROP_FPS, 15)
-        if not self.camera.isOpened():
+        self.camera = self._try_open(camera_index, width, height, backend)
+
+        # Fallback: thu CAP_ANY
+        if self.camera is None and backend != cv2.CAP_ANY:
+            print(f"[Camera] {backend} failed, trying CAP_ANY...")
+            self.camera = self._try_open(camera_index, width, height, cv2.CAP_ANY)
+
+        if self.camera is None:
             raise RuntimeError(f"Cannot open camera {camera_index}")
+
+        print(f"[Camera] Started: index={camera_index}, "
+              f"{int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))}x"
+              f"{int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
+
         self.running = True
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
@@ -65,7 +100,7 @@ class CameraService:
             try:
                 if self.camera and self.camera.isOpened():
                     success, frame = self.camera.read()
-                    if success:
+                    if success and frame is not None:
                         frame = cv2.flip(frame, 1)
                         with self._frame_lock:
                             self.frame = frame
