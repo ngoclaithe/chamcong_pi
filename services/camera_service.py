@@ -1,4 +1,5 @@
 import cv2
+import platform
 import threading
 import time
 
@@ -27,17 +28,25 @@ class CameraService:
         self.width = 640
         self.height = 480
 
+    def _get_backend(self):
+        system = platform.system()
+        if system == 'Windows':
+            return cv2.CAP_DSHOW
+        else:
+            return cv2.CAP_V4L2
+
     def start(self, camera_index=0, width=640, height=480):
         if self.running:
             return
         self.width = width
         self.height = height
-        self.camera = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+        backend = self._get_backend()
+        self.camera = cv2.VideoCapture(camera_index, backend)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.camera.set(cv2.CAP_PROP_FPS, 15)
         if not self.camera.isOpened():
-            raise RuntimeError("Cannot open camera")
+            raise RuntimeError(f"Cannot open camera {camera_index}")
         self.running = True
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()

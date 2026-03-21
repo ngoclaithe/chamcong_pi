@@ -1,3 +1,4 @@
+import os
 import platform
 import cv2
 
@@ -29,42 +30,94 @@ def update(new_settings):
     return get_all()
 
 
+def _get_linux_video_devices():
+    """Tim cac video capture device thuc su tren Linux/Pi."""
+    devices = []
+    v4l_path = '/sys/class/video4linux'
+    if not os.path.exists(v4l_path):
+        return devices
+
+    for dev_name in sorted(os.listdir(v4l_path)):
+        dev_path = f'/dev/{dev_name}'
+        if not os.path.exists(dev_path):
+            continue
+
+        # Chi lay device co khoi video capture (index chan: video0, video2, ...)
+        # Doc V4L2 device_caps de xac dinh
+        caps_path = os.path.join(v4l_path, dev_name, 'device', 'video4linux', dev_name, 'dev')
+        name_path = os.path.join(v4l_path, dev_name, 'name')
+
+        # Kiem tra co phai video capture khong
+        index_path = os.path.join(v4l_path, dev_name, 'index')
+        try:
+            with open(index_path, 'r') as f:
+                idx = int(f.read().strip())
+            # index=0 la video capture, index>0 la metadata
+            if idx != 0:
+                continue
+        except (FileNotFoundError, ValueError):
+            pass
+
+        name = dev_name
+        if os.path.exists(name_path):
+            try:
+                with open(name_path, 'r') as f:
+                    name = f.read().strip()
+            except Exception:
+                pass
+
+        # Lay so index tu ten device (video0 -> 0, video2 -> 2)
+        try:
+            dev_index = int(dev_name.replace('video', ''))
+        except ValueError:
+            continue
+
+        devices.append({'dev_path': dev_path, 'index': dev_index, 'name': name})
+
+    return devices
+
+
 def detect_cameras(max_index=10):
-    import os
     cameras = []
     system = platform.system()
 
-    # Suppress OpenCV warnings khi scan
     old_log = os.environ.get('OPENCV_LOG_LEVEL', '')
-    os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+    os.environ['OPENCV_LOG_LEVEL'] = 'FATAL'
 
-    backends = []
-    if system == 'Windows':
-        backends = [(cv2.CAP_DSHOW, 'DirectShow'), (cv2.CAP_MSMF, 'MSMF')]
-    else:
-        backends = [(cv2.CAP_V4L2, 'V4L2'), (cv2.CAP_ANY, 'Default')]
-
-    found_indices = set()
-    for backend, backend_name in backends:
-        for i in range(max_index):
-            if i in found_indices:
-                continue
+    if system == 'Linux':
+        # Tren Linux/Pi: chi scan device thuc su tu /sys/class/video4linux
+        devices = _get_linux_video_devices()
+        for dev in devices:
             try:
-                cap = cv2.VideoCapture(i, backend)
+                cap = cv2.VideoCapture(dev['index'], cv2.CAP_V4L2)
                 if cap.isOpened():
                     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    name = f"Camera {i}"
-                    if system == 'Linux':
-                        import os
-                        dev_path = f"/sys/class/video4linux/video{i}/name"
-                        if os.path.exists(dev_path):
-                            with open(dev_path, 'r') as f:
-                                name = f.read().strip()
-                    else:
-                        name = f"Camera {i} ({backend_name})"
-                    cameras.append({'index': i, 'name': name, 'width': w, 'height': h})
-                    found_indices.add(i)
+                    cameras.append({
+                        'index': dev['index'],
+                        'name': dev['name'],
+                        'width': w,
+                        'height': h,
+                    })
+                    cap.release()
+                else:
+                    cap.release()
+            except Exception:
+                continue
+    else:
+        # Windows: thu DirectShow truoc
+        for i in range(max_index):
+            try:
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    cameras.append({
+                        'index': i,
+                        'name': f'Camera {i} (DirectShow)',
+                        'width': w,
+                        'height': h,
+                    })
                     cap.release()
                 else:
                     cap.release()
@@ -72,5 +125,4 @@ def detect_cameras(max_index=10):
                 continue
 
     os.environ['OPENCV_LOG_LEVEL'] = old_log
-
     return cameras
