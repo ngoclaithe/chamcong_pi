@@ -93,7 +93,7 @@ def detect_cameras(max_index=10):
         devices = _get_linux_video_devices()
         for dev in devices:
             try:
-                cap = cv2.VideoCapture(dev['index'], cv2.CAP_V4L2)
+                cap = cv2.VideoCapture(dev['dev_path'])
                 if cap.isOpened():
                     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -104,6 +104,8 @@ def detect_cameras(max_index=10):
                         'height': h,
                     })
                     cap.release()
+                    import time
+                    time.sleep(0.3)
                 else:
                     cap.release()
             except Exception:
