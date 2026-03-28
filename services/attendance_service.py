@@ -11,29 +11,38 @@ class AttendanceService:
         self.duplicate_window = timedelta(minutes=duplicate_window_minutes)
 
     def log_attendance(self, user_id, confidence=None, frame=None, data_dir=None):
-        cutoff = datetime.now() - self.duplicate_window
-        recent = Attendance.query.filter(
-            Attendance.user_id == user_id,
-            Attendance.timestamp >= cutoff
-        ).first()
-        if recent:
-            return False, "Already logged recently"
+        print(f"[Attendance] log_attendance called: user_id={user_id}, confidence={confidence}")
+        try:
+            cutoff = datetime.now() - self.duplicate_window
+            recent = Attendance.query.filter(
+                Attendance.user_id == user_id,
+                Attendance.timestamp >= cutoff
+            ).first()
+            if recent:
+                print(f"[Attendance] Skipped: duplicate within {self.duplicate_window}")
+                return False, "Already logged recently"
 
-        photo_path = None
-        if frame is not None and data_dir is not None:
-            photo_dir = os.path.join(data_dir, 'attendance_photos')
-            os.makedirs(photo_dir, exist_ok=True)
-            timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'user_{user_id}_{timestamp_str}.jpg'
-            cv2.imwrite(os.path.join(photo_dir, filename), frame)
-            photo_path = f'attendance_photos/{filename}'
+            photo_path = None
+            if frame is not None and data_dir is not None:
+                photo_dir = os.path.join(data_dir, 'attendance_photos')
+                os.makedirs(photo_dir, exist_ok=True)
+                timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f'user_{user_id}_{timestamp_str}.jpg'
+                cv2.imwrite(os.path.join(photo_dir, filename), frame)
+                photo_path = f'attendance_photos/{filename}'
 
-        record = Attendance(user_id=user_id, confidence=confidence, photo_path=photo_path)
-        db.session.add(record)
-        db.session.commit()
+            record = Attendance(user_id=user_id, confidence=confidence, photo_path=photo_path)
+            print(f"[Attendance] Creating record: timestamp={record.timestamp}")
+            db.session.add(record)
+            db.session.commit()
 
-        user = User.query.get(user_id)
-        return True, f"Attendance logged for {user.name if user else 'Unknown'}"
+            user = User.query.get(user_id)
+            print(f"[Attendance] SUCCESS: Saved attendance for {user.name if user else 'Unknown'}, id={record.id}")
+            return True, f"Attendance logged for {user.name if user else 'Unknown'}"
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Attendance] ERROR: {type(e).__name__}: {e}")
+            return False, f"Error: {str(e)}"
 
     def delete_record(self, record_id, data_dir=None):
         record = Attendance.query.get(record_id)

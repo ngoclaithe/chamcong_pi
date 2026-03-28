@@ -1,3 +1,4 @@
+from datetime import datetime
 from extensions import db
 
 
@@ -6,7 +7,7 @@ class Attendance(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+    timestamp = db.Column(db.DateTime, default=datetime.now)
     confidence = db.Column(db.Float)
     photo_path = db.Column(db.String(255), nullable=True)
 
