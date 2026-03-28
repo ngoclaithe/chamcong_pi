@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
     {% block head %}{% endblock %}
 </head>
 
@@ -69,8 +69,8 @@
                 </button>
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
                 <div class="top-bar-right">
-                    <i data-lucide="clock" style="width:14px; height:14px; opacity:0.5;"></i>
-                    <span class="current-time" id="currentTime"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5; flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span class="current-time" id="currentTime" style="font-size:14px; font-weight:500; color:var(--text-secondary); white-space:nowrap;">--:--:--</span>
                 </div>
             </header>
 
@@ -101,15 +101,20 @@
     </div>
 
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
+        // Initialize Lucide icons (with fallback if CDN fails)
+        try { lucide.createIcons(); } catch(e) { console.warn('Lucide icons not loaded (offline?)', e); }
 
-        // Update clock
+        // Update clock — runs independently of Lucide
         function updateTime() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateStr = now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-            document.getElementById('currentTime').textContent = `${dateStr} — ${timeStr}`;
+            try {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateStr = now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+                const el = document.getElementById('currentTime');
+                if (el) el.textContent = `${dateStr} — ${timeStr}`;
+            } catch(e) {
+                console.error('Clock update error:', e);
+            }
         }
         updateTime();
         setInterval(updateTime, 1000);
